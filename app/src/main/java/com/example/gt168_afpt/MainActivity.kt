@@ -4,11 +4,11 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.google.gson.Gson
 import fi.iki.elonen.NanoHTTPD
-import java.io.IOException
+import com.google.gson.reflect.TypeToken
+import kotlin.Exception
 
 
 class MainActivity : AppCompatActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -16,26 +16,20 @@ class MainActivity : AppCompatActivity() {
         object : NanoHTTPD(5000) {
             override fun serve(session: IHTTPSession): Response {
                 val files = HashMap<String, String>()
-                val method = session.method
-                if (method == Method.POST) {
+                session.parseBody(files)
+                val requestJson: Map<String, Any> =
                     try {
-                        session.parseBody(files)
-                    } catch (ioe: IOException) {
-                        return newFixedLengthResponse(
-                            Response.Status.INTERNAL_ERROR,
-                            MIME_PLAINTEXT,
-                            "SERVER INTERNAL ERROR: IOException: $ioe"
+                        Gson().fromJson(
+                            files["postData"],
+                            object : TypeToken<Map<String, Any>>() {}.type
                         )
-                    } catch (re: ResponseException) {
-                        return newFixedLengthResponse(re.status, MIME_PLAINTEXT, re.message)
+                    } catch (e: Exception) {
+                        mapOf(
+                            "error" to 0,
+                            "message" to "invalid request"
+                        )
                     }
-
-                }
-                // get the POST body
-//                val postBody = session.queryParameterString
-                // or you can access the POST request's parameters
-//                val postParameter = session.parms["parameter"]
-                return newFixedLengthResponse("OK") // Or postParameter.
+                return newFixedLengthResponse(Gson().toJson(requestJson))
             }
         }.start()
     }
