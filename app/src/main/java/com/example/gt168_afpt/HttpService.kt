@@ -15,7 +15,7 @@ import com.google.gson.JsonSyntaxException
 import com.google.gson.reflect.TypeToken
 import fi.iki.elonen.NanoHTTPD
 
-const val HTTP_SERVER_PORT = 5000;
+const val HTTP_SERVER_PORT = 5000
 const val NOTIFICATION_CHANNEL_ID = "HTTP Server Service"
 
 class HttpService : Service() {
@@ -41,7 +41,7 @@ class HttpService : Service() {
             .setContentIntent(pendingIntent)
             .build()
         startForeground(1, notification)
-        HttpServer().start();
+        HttpServer().start()
         return START_NOT_STICKY
     }
 
@@ -67,19 +67,19 @@ class HttpServer : NanoHTTPD(HTTP_SERVER_PORT) {
         )
     )
 
-    override fun serve(session: IHTTPSession): Response {2
-        try {
+    override fun serve(session: IHTTPSession): Response {
+        return try {
             val files = HashMap<String, String>()
             session.parseBody(files)
             val json: Map<String, Any> = Gson().fromJson(
                 files["postData"],
                 object : TypeToken<Map<String, Any>>() {}.type
             )
-            return newFixedLengthResponse(Gson().toJson(json))
+            newFixedLengthResponse(Gson().toJson(json))
         } catch (e: JsonSyntaxException) {
-            return newFixedLengthResponse(badRequestResponse)
+            newFixedLengthResponse(badRequestResponse)
         } catch (e: ResponseException) {
-            return newFixedLengthResponse(badRequestResponse)
+            newFixedLengthResponse(badRequestResponse)
         }
     }
 }
