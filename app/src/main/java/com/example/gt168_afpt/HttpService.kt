@@ -12,7 +12,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
-import com.google.gson.reflect.TypeToken
 import fi.iki.elonen.NanoHTTPD
 
 const val HTTP_SERVER_PORT = 5000
@@ -71,11 +70,10 @@ class HttpServer : NanoHTTPD(HTTP_SERVER_PORT) {
         try {
             val files = HashMap<String, String>()
             session.parseBody(files)
-            val postData = files["postData"];
-            val json: RequestModel = Gson().fromJson(
-                postData, RequestModel::class.java
-            )
-            newFixedLengthResponse(Gson().toJson(ResponseModel(json.name, json.age)))
+            val postData = files["postData"]
+            val request = Gson().fromJson(postData, MyRoute.MyRequest::class.java)
+            val response = MyRoute.run(request)
+            newFixedLengthResponse(Gson().toJson(response))
         } catch (e: JsonSyntaxException) {
             newFixedLengthResponse(badRequestResponse)
         } catch (e: ResponseException) {
@@ -84,5 +82,14 @@ class HttpServer : NanoHTTPD(HTTP_SERVER_PORT) {
 
 }
 
-data class RequestModel(val name: String = "", val age: Int = 0)
-data class ResponseModel(val name: String = "", val age: Int = 0)
+
+interface RouteModel<RequestModel, ResponseModel> {
+    fun run(request: RequestModel): ResponseModel
+}
+
+object MyRoute : RouteModel<MyRoute.MyRequest, MyRoute.MyResponse> {
+    data class MyRequest(val name: String, val age: Int)
+    data class MyResponse(val name: String, val age: Int)
+
+    override fun run(request: MyRequest) = MyResponse(request.name, request.age)
+}
