@@ -67,19 +67,22 @@ class HttpServer : NanoHTTPD(HTTP_SERVER_PORT) {
         )
     )
 
-    override fun serve(session: IHTTPSession): Response {
-        return try {
+    override fun serve(session: IHTTPSession): Response =
+        try {
             val files = HashMap<String, String>()
             session.parseBody(files)
-            val json: Map<String, Any> = Gson().fromJson(
-                files["postData"],
-                object : TypeToken<Map<String, Any>>() {}.type
+            val postData = files["postData"];
+            val json: RequestModel = Gson().fromJson(
+                postData, RequestModel::class.java
             )
-            newFixedLengthResponse(Gson().toJson(json))
+            newFixedLengthResponse(Gson().toJson(ResponseModel(json.name, json.age)))
         } catch (e: JsonSyntaxException) {
             newFixedLengthResponse(badRequestResponse)
         } catch (e: ResponseException) {
             newFixedLengthResponse(badRequestResponse)
         }
-    }
+
 }
+
+data class RequestModel(val name: String = "", val age: Int = 0)
+data class ResponseModel(val name: String = "", val age: Int = 0)
