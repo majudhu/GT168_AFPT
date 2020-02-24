@@ -13,6 +13,8 @@ import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import fi.iki.elonen.NanoHTTPD
+import kotlin.reflect.KClass
+import kotlin.reflect.KProperty1
 
 const val HTTP_SERVER_PORT = 5000
 const val NOTIFICATION_CHANNEL_ID = "HTTP Server Service"
@@ -72,6 +74,8 @@ class HttpServer : NanoHTTPD(HTTP_SERVER_PORT) {
             session.parseBody(files)
             val postData = files["postData"]
             val request = Gson().fromJson(postData, MyRoute.MyRequest::class.java)
+            val xx: KClass<*> = MyRoute.MyRequest::class;
+
             val response = MyRoute.run(request)
             newFixedLengthResponse(Gson().toJson(response))
         } catch (e: JsonSyntaxException) {
@@ -83,13 +87,23 @@ class HttpServer : NanoHTTPD(HTTP_SERVER_PORT) {
 }
 
 
-interface RouteModel<RequestModel, ResponseModel> {
-    fun run(request: RequestModel): ResponseModel
+
+abstract class RouteModel {
+    abstract val RequestModel: KClass<*>
+    abstract val ResponseModel: KClass<*>
+    abstract val Uri: String
+
+    abstract fun run(req:Any) : Any
 }
 
-object MyRoute : RouteModel<MyRoute.MyRequest, MyRoute.MyResponse> {
+object MyRoute : RouteModel() {
     data class MyRequest(val name: String, val age: Int)
     data class MyResponse(val name: String, val age: Int)
 
-    override fun run(request: MyRequest) = MyResponse(request.name, request.age)
+    override val RequestModel = MyRequest::class
+    override val ResponseModel = MyResponse::class
+    override val Uri = "/"
+    override fun run(req: Any): Any {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
 }
