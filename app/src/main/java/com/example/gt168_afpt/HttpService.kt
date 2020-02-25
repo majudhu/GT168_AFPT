@@ -11,13 +11,11 @@ import androidx.core.app.NotificationCompat
 import android.content.BroadcastReceiver
 import android.content.Context
 import com.google.gson.Gson
-import com.google.gson.JsonSyntaxException
 import fi.iki.elonen.NanoHTTPD
-import kotlin.reflect.KClass
-import kotlin.reflect.KProperty1
 
 const val HTTP_SERVER_PORT = 5000
 const val NOTIFICATION_CHANNEL_ID = "HTTP Server Service"
+const val MIME_JSON = "application/json"
 
 class HttpService : Service() {
 
@@ -61,49 +59,31 @@ class StartOnBoot : BroadcastReceiver() {
 }
 
 class HttpServer : NanoHTTPD(HTTP_SERVER_PORT) {
-    private val badRequestResponse: String = Gson().toJson(
-        mapOf(
-            "error" to Response.Status.BAD_REQUEST.requestStatus,
-            "message" to Response.Status.BAD_REQUEST.description
-        )
-    )
 
     override fun serve(session: IHTTPSession): Response =
         try {
             val files = HashMap<String, String>()
             session.parseBody(files)
-            val postData = files["postData"]
-            val request = Gson().fromJson(postData, MyRoute.MyRequest::class.java)
-            val xx: KClass<*> = MyRoute.MyRequest::class;
-
-            val response = MyRoute.run(request)
-            newFixedLengthResponse(Gson().toJson(response))
-        } catch (e: JsonSyntaxException) {
-            newFixedLengthResponse(badRequestResponse)
-        } catch (e: ResponseException) {
-            newFixedLengthResponse(badRequestResponse)
+            val postData = files["postData"] ?: throw  Exception()
+            val response = Routes[session.uri]?.invoke(postData) ?: throw Exception()
+            newFixedLengthResponse(Response.Status.OK, MIME_JSON, response)
+        } catch (e: Exception) {
+            newFixedLengthResponse(
+                Response.Status.BAD_REQUEST,
+                MIME_PLAINTEXT,
+                Response.Status.BAD_REQUEST.description
+            )
         }
 
 }
 
+val Routes: Map<String, (String) -> String> = mapOf(
+    "/" to { postData ->
+        data class RequestModel(val name: String, val age: Int)
 
-
-abstract class RouteModel {
-    abstract val RequestModel: KClass<*>
-    abstract val ResponseModel: KClass<*>
-    abstract val Uri: String
-
-    abstract fun run(req:Any) : Any
-}
-
-object MyRoute : RouteModel() {
-    data class MyRequest(val name: String, val age: Int)
-    data class MyResponse(val name: String, val age: Int)
-
-    override val RequestModel = MyRequest::class
-    override val ResponseModel = MyResponse::class
-    override val Uri = "/"
-    override fun run(req: Any): Any {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        val oldUser = Gson().fromJson(postData, RequestModel::class.java)
+        val newUser = RequestModel(oldUser.name, oldUser.age)
+        Gson().toJson(newUser)
     }
-}
+
+)
