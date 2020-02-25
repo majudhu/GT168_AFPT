@@ -10,13 +10,14 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import android.content.BroadcastReceiver
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
 import com.google.gson.Gson
 import fi.iki.elonen.NanoHTTPD
 
 const val HTTP_SERVER_PORT = 5000
 const val NOTIFICATION_CHANNEL_ID = "HTTP Server Service"
 const val MIME_JSON = "application/json"
-
+val gson:Function<String> = ::Gson().fromJson
 class HttpService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -59,13 +60,13 @@ class StartOnBoot : BroadcastReceiver() {
 }
 
 class HttpServer : NanoHTTPD(HTTP_SERVER_PORT) {
-
     override fun serve(session: IHTTPSession): Response =
         try {
             val files = HashMap<String, String>()
             session.parseBody(files)
-            val postData = files["postData"] ?: throw  Exception()
-            val response = Routes[session.uri]?.invoke(postData) ?: throw Exception()
+            val postData = files["postData"] ?: throw Exception()
+            val route = Routes[session.uri] ?: throw Exception()
+            val response = route(postData)
             newFixedLengthResponse(Response.Status.OK, MIME_JSON, response)
         } catch (e: Exception) {
             newFixedLengthResponse(
@@ -74,16 +75,27 @@ class HttpServer : NanoHTTPD(HTTP_SERVER_PORT) {
                 Response.Status.BAD_REQUEST.description
             )
         }
-
 }
 
 val Routes: Map<String, (String) -> String> = mapOf(
-    "/" to { postData ->
+    "/" to { _: String -> Gson().toJson("hello") },
+
+    "/create" to fun(postData: String): String {
         data class RequestModel(val name: String, val age: Int)
 
-        val oldUser = Gson().fromJson(postData, RequestModel::class.java)
-        val newUser = RequestModel(oldUser.name, oldUser.age)
-        Gson().toJson(newUser)
+        return "success"
+    },
+
+    "/update" to fun(postData: String): String {
+        data class RequestModel(val name: String, val age: Int)
+
+        return "success"
+    },
+
+    "/delete" to fun(postData: String): String {
+        data class RequestModel(val name: String, val age: Int)
+
+        return "success"
     }
 
 )
