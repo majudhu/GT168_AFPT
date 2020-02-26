@@ -10,14 +10,14 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import android.content.BroadcastReceiver
 import android.content.Context
-import android.database.sqlite.SQLiteDatabase
 import com.google.gson.Gson
 import fi.iki.elonen.NanoHTTPD
 
 const val HTTP_SERVER_PORT = 5000
 const val NOTIFICATION_CHANNEL_ID = "HTTP Server Service"
 const val MIME_JSON = "application/json"
-val gson:Function<String> = ::Gson().fromJson
+private val GSON = Gson()
+
 class HttpService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -65,8 +65,8 @@ class HttpServer : NanoHTTPD(HTTP_SERVER_PORT) {
             val files = HashMap<String, String>()
             session.parseBody(files)
             val postData = files["postData"] ?: throw Exception()
-            val route = Routes[session.uri] ?: throw Exception()
-            val response = route(postData)
+            val route = ROUTES[session.uri] ?: throw Exception()
+            val response = route(postData) ?: throw Exception()
             newFixedLengthResponse(Response.Status.OK, MIME_JSON, response)
         } catch (e: Exception) {
             newFixedLengthResponse(
@@ -77,25 +77,31 @@ class HttpServer : NanoHTTPD(HTTP_SERVER_PORT) {
         }
 }
 
-val Routes: Map<String, (String) -> String> = mapOf(
-    "/" to { _: String -> Gson().toJson("hello") },
+val ROUTES: Map<String, (String) -> String?> = mapOf(
+    "/" to { _ -> Gson().toJson("hello") },
 
-    "/create" to fun(postData: String): String {
-        data class RequestModel(val name: String, val age: Int)
+    "/create" to fun(postData): String? {
+        data class RequestModel(val name: String?, val age: Int?)
 
-        return "success"
+        val newData = GSON.fromJson(postData, RequestModel::class.java)
+        if (newData.name == null) return null
+        return "created ${newData.name}"
     },
 
-    "/update" to fun(postData: String): String {
-        data class RequestModel(val name: String, val age: Int)
+    "/update" to fun(postData): String? {
+        data class RequestModel(val name: String?, val age: Int?)
 
-        return "success"
+        val newData = GSON.fromJson(postData, RequestModel::class.java)
+        if (newData.age == null) return null
+        return "updated ${newData.name}"
     },
 
-    "/delete" to fun(postData: String): String {
-        data class RequestModel(val name: String, val age: Int)
+    "/delete" to fun(postData): String? {
+        data class RequestModel(val name: String?, val age: Int?)
 
-        return "success"
+        val newData = GSON.fromJson(postData, RequestModel::class.java)
+        if (newData.name == null) return null
+        return "deleted ${newData.name}"
     }
 
 )
